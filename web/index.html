@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>longsnake</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #111;
+        color: #ddd;
+        font-family: system-ui, sans-serif;
+      }
+      main {
+        min-height: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 1rem;
+        padding: 1rem;
+        box-sizing: border-box;
+      }
+      h1 {
+        margin: 0;
+        font-weight: 600;
+        letter-spacing: 0.05em;
+      }
+      /* The game renders at 256x320; scale up with nearest-neighbour so the
+         pixels stay crisp instead of blurring. */
+      #game {
+        width: 512px;
+        height: 640px;
+        image-rendering: pixelated;
+        image-rendering: crisp-edges;
+        background: #000;
+        box-shadow: 0 0 24px #000;
+      }
+      p {
+        margin: 0;
+        opacity: 0.7;
+        font-size: 0.9rem;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>longsnake</h1>
+      <canvas id="game" width="256" height="320"></canvas>
+      <p>Arrow keys (or WASD) to steer. Eat the green square.</p>
+    </main>
+    <script type="module">
+      // The wasm-bindgen `start` function (our #[wasm_bindgen(start)]) runs
+      // automatically once the module finishes initializing, so we only need
+      // to await init() — it grabs <canvas id="game"> and starts the loop.
+      import init from "./pkg/bitwise_challenge_bddap.js";
+      init().catch((e) => {
+        document.querySelector("main").insertAdjacentHTML(
+          "beforeend",
+          `<p style="color:#f66">failed to load: ${e}</p>`,
+        );
+        console.error(e);
+      });
+    </script>
+  </body>
+</html>

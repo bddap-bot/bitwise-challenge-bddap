@@ -3,5 +3,35 @@ name = "bitwise-challenge-bddap"
 version = "0.1.0"
 edition = "2024"
 
+# cdylib for the wasm-bindgen build (wasm-bindgen exports from a cdylib),
+# rlib so the native binary can link the library.
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[features]
+default = ["native"]
+# The native (desktop) backend. minifb has no wasm32 backend, so it is gated
+# here and the wasm build is done with --no-default-features.
+native = ["dep:minifb"]
+
 [dependencies]
-minifb = "0.23"
+minifb = { version = "0.23", optional = true }
+
+# wasm-only deps: the canvas runner. wasm-bindgen is pinned so the crate and the
+# wasm-bindgen CLI (which generates the JS glue) stay in lockstep.
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+wasm-bindgen = "=0.2.121"
+console_error_panic_hook = "0.1"
+
+[target.'cfg(target_arch = "wasm32")'.dependencies.web-sys]
+version = "0.3"
+features = [
+    "Window",
+    "Document",
+    "Element",
+    "HtmlElement",
+    "HtmlCanvasElement",
+    "CanvasRenderingContext2d",
+    "ImageData",
+    "KeyboardEvent",
+]

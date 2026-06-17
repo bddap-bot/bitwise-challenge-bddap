@@ -1,0 +1,61 @@
+name: Deploy web demo to GitHub Pages
+
+# Build the wasm/canvas demo and publish it to GitHub Pages on every push to the
+# default branch. CI is the canonical wasm build environment (a clean Ubuntu
+# runner where the wasm toolchain installs cleanly).
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Allow one concurrent deployment; a newer push supersedes an in-flight one.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust + wasm target
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup target add wasm32-unknown-unknown
+          rustup default stable
+
+      - name: Install wasm-pack
+        uses: jetli/wasm-pack-action@v0.4.0
+        with:
+          version: latest
+
+      - name: Build wasm (no-default-features drops the native minifb backend)
+        run: wasm-pack build --target web --release --no-default-features --no-typescript
+
+      - name: Assemble dist/
+        run: |
+          mkdir -p dist
+          cp web/index.html dist/index.html
+          cp -r pkg dist/pkg
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
