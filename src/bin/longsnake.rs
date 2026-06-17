@@ -4,7 +4,7 @@ use std::{
 };
 
 use bitwise_challenge_bddap::cheeky_encoding::{decode, encode};
-use bitwise_challenge_bddap::game::{Game, Input, Key, Output};
+use bitwise_challenge_bddap::game::{Dir, Game, Input, Output};
 
 const CELLS: u32 = 8;
 const CELL: u32 = 32;
@@ -335,13 +335,12 @@ impl Data {
     }
 
     fn handle_input(&mut self, input: &Input<'_, Snake>) {
-        for key in input.get_keys_pressed() {
-            let new_dir = match key {
-                Key::Right => Direction::East,
-                Key::Left => Direction::West,
-                Key::Up => Direction::North,
-                Key::Down => Direction::South,
-                _ => return,
+        for dir in input.get_directions_pressed() {
+            let new_dir = match dir {
+                Dir::Right => Direction::East,
+                Dir::Left => Direction::West,
+                Dir::Up => Direction::North,
+                Dir::Down => Direction::South,
             };
             if let Some(turn) = new_dir.relative(self.future_dir()) {
                 self.enqueue_turn(turn)
