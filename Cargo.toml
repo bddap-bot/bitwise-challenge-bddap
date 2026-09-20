@@ -3,5 +3,18 @@ name = "bitwise-challenge-bddap"
 version = "0.1.0"
 edition = "2024"
 
-[dependencies]
-minifb = "0.23"
+[lib]
+crate-type = ["rlib", "cdylib"]
+
+[[bin]]
+name = "longsnake"
+path = "src/bin/longsnake.rs"
+required-features = ["desktop"]
+
+[features]
+default = ["desktop"]
+desktop = ["dep:minifb", "dep:gilrs"]
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+minifb = { version = "0.23", optional = true }
+gilrs = { version = "0.11", optional = true }

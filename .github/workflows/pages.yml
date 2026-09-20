@@ -1,0 +1,43 @@
+name: Pages
+on:
+  push:
+    branches: [main, browser-controller-demo]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+          components: rustfmt
+      - run: sudo apt-get update && sudo apt-get install -y libudev-dev libxkbcommon-dev
+      - run: cargo fmt --check
+      - run: cargo test --locked
+      - run: cargo test --locked --no-default-features
+      - run: node --check web/game.js
+      - run: cargo build --locked --release --bin longsnake
+      - run: cargo build --locked --release --lib --no-default-features --target wasm32-unknown-unknown
+      - run: cp target/wasm32-unknown-unknown/release/bitwise_challenge_bddap.wasm web/longsnake.wasm
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: web
+  deploy:
+    if: github.event_name != 'pull_request'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/deploy-pages@v4
+        id: deployment

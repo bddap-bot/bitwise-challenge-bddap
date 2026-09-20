@@ -151,4 +151,3 @@ mod tests {
         check(&[(u32::MAX.into(), Into::<u64>::into(u32::MAX) + 1); 2]);
     }
 }
-
