@@ -24,7 +24,7 @@ cp "${CARGO_TARGET_DIR:-target}/wasm32-unknown-unknown/release/bitwise_challenge
 python3 -m http.server --directory web 8000
 ```
 
-Open http://localhost:8000. Both targets use the same state, direction queue,
+Open <http://localhost:8000>. Both targets use the same state, direction queue,
 frame step, and pixel buffer. The browser presents that buffer on a canvas at
 60 simulation steps per second. Desktop dependencies are optional and excluded
 from the wasm build.
