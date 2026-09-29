@@ -1,3 +1,5 @@
+// Copied from https://github.com/zesterer/bitwise-examples/blob/b8479bfd485356b3ac399f984e713939ba6a6573/src/lib.rs
+
 use std::marker::PhantomData;
 
 #[repr(u8)]
@@ -9,33 +11,21 @@ pub enum Direction {
     South = 3,
 }
 
-impl From<u8> for Direction {
-    fn from(value: u8) -> Self {
-        match value % 4 {
-            0 => Direction::East,
-            1 => Direction::North,
-            2 => Direction::West,
-            3 => Direction::South,
-            _ => unreachable!(),
-        }
-    }
-}
-
 pub trait Game: Sized + 'static {
     const NAME: &'static str;
     const WIDTH: usize;
     const HEIGHT: usize;
 
     fn init() -> u64;
+
     fn tick(prev: u64, input: &Input<'_, Self>, output: &mut Output<'_, Self>) -> u64;
 }
 
 pub struct Runner<G: Game> {
     state: u64,
     tick: u64,
-    elapsed: f64,
     directions: Vec<Direction>,
-    buffer: Vec<u32>,
+    buf: Vec<u32>,
     phantom: PhantomData<G>,
 }
 
@@ -44,43 +34,44 @@ impl<G: Game> Default for Runner<G> {
         Self {
             state: G::init(),
             tick: 0,
-            elapsed: 1000.0 / 60.0,
             directions: Vec::new(),
-            buffer: vec![0; G::WIDTH * G::HEIGHT],
+            buf: vec![0; G::WIDTH * G::HEIGHT],
             phantom: PhantomData,
         }
     }
 }
 
 impl<G: Game> Runner<G> {
-    pub fn frame(&mut self, elapsed_ms: f64, directions: &[Direction]) -> &[u32] {
-        self.directions.extend_from_slice(directions);
-        self.elapsed += elapsed_ms.clamp(0.0, 100.0);
-        while self.elapsed >= 1000.0 / 60.0 {
-            let input = Input {
-                directions: &self.directions,
-                tick: self.tick,
-                phantom: PhantomData,
-            };
-            let mut output = Output::new();
-            self.state = G::tick(self.state, &input, &mut output);
-            self.buffer.fill(0);
-            output.write_to(&mut self.buffer);
-            self.directions.clear();
-            self.tick += 1;
-            self.elapsed -= 1000.0 / 60.0;
-        }
-        &self.buffer
+    pub fn push(&mut self, direction: Direction) {
+        self.directions.push(direction);
+    }
+
+    pub fn step(&mut self) -> &[u32] {
+        let input = Input {
+            directions: &self.directions,
+            tick: self.tick,
+            phantom: PhantomData,
+        };
+        let mut output = Output::new();
+
+        self.state = G::tick(self.state, &input, &mut output);
+
+        self.buf.fill(0);
+        output.write_to(&mut self.buf);
+
+        self.directions.clear();
+        self.tick += 1;
+        &self.buf
     }
 }
 
 pub struct Input<'a, G: Game> {
     directions: &'a [Direction],
     tick: u64,
-    phantom: PhantomData<G>,
+    phantom: PhantomData<&'static mut G>,
 }
 
-impl<G: Game> Input<'_, G> {
+impl<'a, G: Game> Input<'a, G> {
     pub fn tick(&self) -> u64 {
         self.tick
     }
@@ -89,9 +80,6 @@ impl<G: Game> Input<'_, G> {
         self.directions
     }
 }
-
-#[cfg(all(feature = "desktop", not(target_arch = "wasm32")))]
-pub use crate::desktop::run;
 
 pub struct Output<'a, G: Game> {
     shapes: Vec<Shape>,
@@ -127,9 +115,9 @@ impl<'a, G: Game> Output<'a, G> {
                     for j in 0..h {
                         for i in 0..w {
                             let pos = [x + i as i32, y + j as i32];
-                            if pos[0] > 0
+                            if pos[0] >= 0
                                 && pos[0] < G::WIDTH as i32
-                                && pos[1] > 0
+                                && pos[1] >= 0
                                 && pos[1] < G::HEIGHT as i32
                             {
                                 buf[pos[1] as usize * G::WIDTH + pos[0] as usize] =
@@ -146,43 +134,42 @@ impl<'a, G: Game> Output<'a, G> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::longsnake::Snake;
 
-    #[test]
-    fn presentation_rate_does_not_change_simulation() {
-        let mut fast = Runner::<Snake>::default();
-        let mut slow = Runner::<Snake>::default();
-        fast.frame(0.0, &[]);
-        slow.frame(0.0, &[]);
-        for _ in 0..120 {
-            fast.frame(10.0, &[]);
+    struct Probe;
+
+    impl Game for Probe {
+        const NAME: &'static str = "Probe";
+        const WIDTH: usize = 2;
+        const HEIGHT: usize = 2;
+
+        fn init() -> u64 {
+            0
         }
-        for _ in 0..30 {
-            slow.frame(40.0, &[]);
+
+        fn tick(prev: u64, input: &Input<'_, Self>, output: &mut Output<'_, Self>) -> u64 {
+            if input.tick() == 0 {
+                output.rect(-1, -1, 4, 4, [1, 2, 3]);
+            }
+            prev + input.directions().len() as u64
         }
-        assert_eq!(fast.tick, slow.tick);
-        assert_eq!(fast.state, slow.state);
-        assert_eq!(fast.buffer, slow.buffer);
     }
 
     #[test]
-    fn input_survives_frames_without_a_simulation_step() {
-        let mut game = Runner::<Snake>::default();
-        game.frame(0.0, &[]);
-        let tick = game.tick;
-        game.frame(1.0, &[Direction::North]);
-        assert_eq!(game.tick, tick);
-        assert_eq!(game.directions, [Direction::North]);
-        game.frame(20.0, &[]);
-        assert!(game.directions.is_empty());
+    fn each_pushed_direction_reaches_one_tick() {
+        let mut game = Runner::<Probe>::default();
+        game.push(Direction::North);
+        game.push(Direction::East);
+        game.step();
+        game.step();
+        game.push(Direction::West);
+        game.step();
+        assert_eq!(game.state, 3);
     }
 
     #[test]
-    fn long_pause_has_bounded_catch_up() {
-        let mut game = Runner::<Snake>::default();
-        game.frame(0.0, &[]);
-        let tick = game.tick;
-        game.frame(60_000.0, &[]);
-        assert!(game.tick - tick <= 6);
+    fn rects_clip_to_the_frame_and_frames_start_blank() {
+        let mut game = Runner::<Probe>::default();
+        assert_eq!(game.step(), [u32::from_le_bytes([1, 2, 3, 255]); 4]);
+        assert_eq!(game.step(), [0; 4]);
     }
 }

@@ -16,17 +16,15 @@ try {
     ["ArrowLeft", 2], ["KeyA", 2],
     ["ArrowDown", 3], ["KeyS", 3],
   ]);
-  window.addEventListener("keydown", event => {
+  addEventListener("keydown", event => {
     const direction = keys.get(event.code);
     if (direction === undefined || event.ctrlKey || event.metaKey || event.altKey) return;
     event.preventDefault();
     if (!event.repeat) game.direction(direction);
   });
-  let previous;
-  function animate(now) {
-    const pointer = game.frame(previous === undefined ? 0 : now - previous);
-    previous = now;
-    const pixels = new Uint32Array(game.memory.buffer, pointer, canvas.width * canvas.height);
+  setInterval(() => {
+    const frame = game.step();
+    const pixels = new Uint32Array(game.memory.buffer, frame, canvas.width * canvas.height);
     for (let i = 0; i < pixels.length; i++) {
       image.data[i * 4] = pixels[i] >>> 16 & 255;
       image.data[i * 4 + 1] = pixels[i] >>> 8 & 255;
@@ -34,13 +32,8 @@ try {
       image.data[i * 4 + 3] = 255;
     }
     context.putImageData(image, 0, 0);
-    requestAnimationFrame(animate);
-  }
-  document.addEventListener("visibilitychange", () => {
-    previous = undefined;
-  });
-  status.textContent = "Ready";
-  requestAnimationFrame(animate);
+  }, 1000 / 60);
+  status.remove();
 } catch (error) {
   status.textContent = `Unable to start: ${error.message}`;
 }

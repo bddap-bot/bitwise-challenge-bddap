@@ -40,6 +40,18 @@ impl From<u8> for Turn {
     }
 }
 
+impl From<u8> for Direction {
+    fn from(value: u8) -> Self {
+        match value % 4 {
+            0 => Direction::East,
+            1 => Direction::North,
+            2 => Direction::West,
+            3 => Direction::South,
+            _ => unreachable!(),
+        }
+    }
+}
+
 impl Direction {
     fn front(self) -> [i32; 2] {
         match self {
@@ -184,8 +196,8 @@ impl Data {
         3,
         3,
         3,
-        8,
-        29,
+        9,
+        26,
     ];
 
     fn from_u64s(data: [u64; FIELD_COUNT]) -> Self {
@@ -287,7 +299,7 @@ impl Data {
     }
 
     fn enqueue_turn(&mut self, inp: Turn) {
-        if self.input_q_len as usize >= self.input_q.len() - 1 {
+        if self.input_q_len as usize == self.input_q.len() {
             return;
         }
         self.input_q[self.input_q_len as usize] = inp;
@@ -387,27 +399,6 @@ mod tests {
     use super::*;
 
     #[test]
-    fn input_queue_stays_encodable() {
-        let mut data = Data::default();
-        for _ in 0..32 {
-            data.enqueue_turn(Turn::Left);
-        }
-        assert_eq!(data.input_q_len, 7);
-        assert_eq!(from_state(make_state(data)).input_q_len, 7);
-    }
-
-    #[test]
-    fn score_stays_encodable() {
-        let mut data = Data {
-            score: SCORE_MAX,
-            ..Data::default()
-        };
-        data.pos = data.fruit_pos();
-        data.update(1);
-        assert_eq!(from_state(make_state(data)).score, SCORE_MAX);
-    }
-
-    #[test]
     fn encode_decode_cardinality() {
         let max = Data::CARDINALITIES.map(|cardinality| cardinality - 1);
         assert_eq!(Data::from_u64s(max).to_u64s(), max);
@@ -429,6 +420,33 @@ mod tests {
             available, 1,
             "you are wasting {bits} bits, {available} available values"
         );
+    }
+
+    #[test]
+    fn full_input_queue_round_trips() {
+        let turns = [Turn::Left, Turn::Right].repeat(4);
+        let mut data = Data::default();
+        for &turn in &turns {
+            data.enqueue_turn(turn);
+        }
+        data.enqueue_turn(Turn::Left);
+
+        let decoded = from_state(make_state(data));
+        assert_eq!(decoded.input_q_len, 8);
+        assert_eq!(decoded.input_q[..], turns);
+    }
+
+    #[test]
+    fn score_stops_at_max() {
+        for score in [SCORE_MAX - 1, SCORE_MAX] {
+            let mut data = Data {
+                score,
+                ..Data::default()
+            };
+            data.pos = data.fruit_pos();
+            data.update(1);
+            assert_eq!(from_state(make_state(data)).score, SCORE_MAX);
+        }
     }
 
     #[test]
