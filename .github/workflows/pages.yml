@@ -1,7 +1,7 @@
 name: Pages
 on:
   push:
-    branches: [main, browser-controller-demo]
+    branches: [main]
   pull_request:
   workflow_dispatch:
 
@@ -12,7 +12,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: wasm32-unknown-unknown
@@ -20,12 +20,10 @@ jobs:
       - run: sudo apt-get update && sudo apt-get install -y libudev-dev libxkbcommon-dev
       - run: cargo fmt --check
       - run: cargo test --locked
-      - run: cargo test --locked --no-default-features
       - run: node --check web/game.js
-      - run: cargo build --locked --release --bin longsnake
-      - run: cargo build --locked --release --lib --no-default-features --target wasm32-unknown-unknown
+      - run: cargo build --locked --release --lib --target wasm32-unknown-unknown
       - run: cp target/wasm32-unknown-unknown/release/bitwise_challenge_bddap.wasm web/longsnake.wasm
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: web
   deploy:
@@ -39,5 +37,5 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - uses: actions/deploy-pages@v4
+      - uses: actions/deploy-pages@v5
         id: deployment

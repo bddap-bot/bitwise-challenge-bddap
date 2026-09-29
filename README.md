@@ -1,44 +1,35 @@
 # Longsnake
 
-Eat green fruit, grow your tail, and avoid running into it. Use WASD or arrow keys.
-The desktop game also accepts a gamepad d-pad or left stick. Escape closes the
-desktop window; after a collision the game restarts automatically.
+A snake game whose entire state fits in one `u64`. Eat the green fruit to grow
+and don't run into your tail; the board wraps at its edges, and a crash restarts
+the game.
+
+Steer with WASD or the arrow keys. The desktop build also takes a gamepad d-pad
+or left stick; Escape closes it.
 
 ## Desktop
 
-Install stable Rust. Linux also needs pkg-config, the X11/Wayland development
-libraries used by minifb, and libudev development files for gilrs.
-
 ```sh
-cargo run --release --bin longsnake
+cargo run --release
 ```
 
-With Nix, enter `nix-shell` first.
+On Linux this needs pkg-config and the libudev and libxkbcommon development
+files; `nix-shell` provides them.
 
 ## Browser
 
 ```sh
 rustup target add wasm32-unknown-unknown
-cargo build --locked --release --lib --no-default-features --target wasm32-unknown-unknown
+cargo build --release --lib --target wasm32-unknown-unknown
 cp "${CARGO_TARGET_DIR:-target}/wasm32-unknown-unknown/release/bitwise_challenge_bddap.wasm" web/longsnake.wasm
 python3 -m http.server --directory web 8000
 ```
 
-Open <http://localhost:8000>. Both targets use the same state, direction queue,
-frame step, and pixel buffer. The browser presents that buffer on a canvas at
-60 simulation steps per second. Desktop dependencies are optional and excluded
-from the wasm build.
+Then open <http://localhost:8000>.
 
-## Checks and deployment
+## Deployment
 
-```sh
-cargo fmt --check
-cargo test --locked
-cargo test --locked --no-default-features
-cargo build --locked --release --bin longsnake
-cargo build --locked --release --lib --no-default-features --target wasm32-unknown-unknown
-```
-
-Choose GitHub Actions as the repository's Pages source. The Pages workflow builds
-and tests both targets, then deploys on pushes to main or the demo branch.
-Pull requests build and test without deploying.
+The Pages workflow checks formatting, runs the tests and builds the browser
+version for every pull request and every push to `main`. Pushes to `main` also
+publish `web/` to GitHub Pages; set the repository's Pages source to GitHub
+Actions.
